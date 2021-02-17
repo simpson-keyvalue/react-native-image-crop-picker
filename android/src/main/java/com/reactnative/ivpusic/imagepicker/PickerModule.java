@@ -42,6 +42,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import android.util.Log;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -669,6 +670,44 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
         uCrop.start(activity);
     }
 
+    private void startCropping(final Activity activity, final ArrayList<Uri> uris) {
+        UCrop.Options options = new UCrop.Options();
+        options.setCompressionFormat(Bitmap.CompressFormat.JPEG);
+        options.setCompressionQuality(100);
+        options.setCircleDimmedLayer(cropperCircleOverlay);
+        options.setFreeStyleCropEnabled(freeStyleCropEnabled);
+        options.setShowCropGrid(showCropGuidelines);
+        options.setShowCropFrame(showCropFrame);
+        options.setHideBottomControls(hideBottomControls);
+
+        if (cropperToolbarTitle != null) {
+            options.setToolbarTitle(cropperToolbarTitle);
+        }
+
+        if (enableRotationGesture) {
+            // UCropActivity.ALL = enable both rotation & scaling
+            options.setAllowedGestures(
+                    UCropActivity.ALL, // When 'scale'-tab active
+                    UCropActivity.ALL, // When 'rotate'-tab active
+                    UCropActivity.ALL  // When 'aspect ratio'-tab active
+            );
+        }
+
+        if (!disableCropperColorSetters) {
+            configureCropperColors(options);
+        }
+
+        UCrop uCrop = UCrop
+                .of(uris, new File(this.getTmpDir(activity)))
+                .withOptions(options);
+
+        if (width > 0 && height > 0) {
+            uCrop.withAspectRatio(width, height);
+        }
+
+        uCrop.start(activity);
+    }
+
     private void imagePickerResult(Activity activity, final int requestCode, final int resultCode, final Intent data) {
         if (resultCode == Activity.RESULT_CANCELED) {
             resultCollector.notifyProblem(E_PICKER_CANCELLED_KEY, E_PICKER_CANCELLED_MSG);
@@ -682,9 +721,16 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
                         resultCollector.setWaitCount(1);
                         getAsyncSelection(activity, data.getData(), false);
                     } else {
-                        resultCollector.setWaitCount(clipData.getItemCount());
-                        for (int i = 0; i < clipData.getItemCount(); i++) {
-                            getAsyncSelection(activity, clipData.getItemAt(i).getUri(), false);
+                        if (cropping) {
+                            ArrayList<Uri> inputList = new ArrayList<Uri>();
+                            for (int i = 0; i < clipData.getItemCount(); i++) {
+                                inputList.add(clipData.getItemAt(i).getUri());
+                            }
+                            startCropping(activity, inputList);
+                        } else {
+                            for (int i = 0; i < clipData.getItemCount(); i++) {
+                                getAsyncSelection(activity, clipData.getItemAt(i).getUri(), false);
+                            }
                         }
                     }
                 } catch (Exception ex) {
@@ -766,6 +812,27 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
                     }
                 } catch (Exception ex) {
                     resultCollector.notifyProblem(E_NO_IMAGE_DATA_FOUND, ex.getMessage());
+                }
+            } else if (multiple) {
+                ArrayList<Uri> desList = UCrop.getOutputArray(data);
+                resultCollector.setWaitCount(desList.size());
+                for (Uri uri : desList) {
+                    try {
+                        /*if (width > 0 && height > 0) {
+                            File resized = compression.resize(this.reactContext, resultUri.getPath(), width, height, 100);
+                            resultUri = Uri.fromFile(resized);
+                        }*/
+                        Log.i("result URI", uri.toString());
+                        WritableMap result = getSelection(activity, uri, false);
+                        if (result != null) {
+                            result.putMap("cropRect", PickerModule.getCroppedRectMap(data));
+                            resultCollector.notifySuccess(result);
+                        } else {
+                            throw new Exception("Cannot crop video files");
+                        }
+                    } catch (Exception ex) {
+                        resultCollector.notifyProblem(E_NO_IMAGE_DATA_FOUND, ex.getMessage());
+                    }
                 }
             } else {
                 resultCollector.notifyProblem(E_NO_IMAGE_DATA_FOUND, "Cannot find image data");
