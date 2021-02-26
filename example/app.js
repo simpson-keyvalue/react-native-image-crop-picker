@@ -169,6 +169,8 @@ export default class App extends Component {
 
   pickMultiple() {
     ImagePicker.openPicker({
+      width: 500,
+      height: 500,
       cropping: true,
       multiple: true,
       waitAnimationEnd: false,
