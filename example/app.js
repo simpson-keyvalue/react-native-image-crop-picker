@@ -171,6 +171,7 @@ export default class App extends Component {
     ImagePicker.openPicker({
       width: 500,
       height: 500,
+      limit: 3,
       cropping: true,
       multiple: true,
       waitAnimationEnd: false,

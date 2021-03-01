@@ -35,6 +35,10 @@ import com.facebook.react.modules.core.PermissionListener;
 import com.yalantis.ucrop.UCrop;
 import com.yalantis.ucrop.UCropActivity;
 
+import com.darsh.multipleimageselect.activities.AlbumSelectActivity;
+import com.darsh.multipleimageselect.helpers.Constants;
+import com.darsh.multipleimageselect.models.Image;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -85,6 +89,7 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
     private boolean disableCropperColorSetters = false;
     private boolean useFrontCamera = false;
     private ReadableMap options;
+    private Integer limit = null;
 
     private String cropperActiveWidgetColor = null;
     private String cropperStatusBarColor = null;
@@ -140,6 +145,7 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
         enableRotationGesture = options.hasKey("enableRotationGesture") && options.getBoolean("enableRotationGesture");
         disableCropperColorSetters = options.hasKey("disableCropperColorSetters") && options.getBoolean("disableCropperColorSetters");
         useFrontCamera = options.hasKey("useFrontCamera") && options.getBoolean("useFrontCamera");
+        limit = options.hasKey("limit") ? options.getInt("limit") : null;
         this.options = options;
     }
 
@@ -380,6 +386,16 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
         }
     }
 
+    private void initiatePickerWithLimit(final Activity activity) {
+        try {
+            Intent intent = new Intent(activity, AlbumSelectActivity.class);
+            intent.putExtra(Constants.INTENT_EXTRA_LIMIT, limit);
+            activity.startActivityForResult(intent, IMAGE_PICKER_REQUEST);
+        } catch (Exception e) {
+            resultCollector.notifyProblem(E_FAILED_TO_SHOW_PICKER, e);
+        }
+    }
+
     @ReactMethod
     public void openPicker(final ReadableMap options, final Promise promise) {
         final Activity activity = getCurrentActivity();
@@ -395,7 +411,10 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
         permissionsCheck(activity, promise, Collections.singletonList(Manifest.permission.WRITE_EXTERNAL_STORAGE), new Callable<Void>() {
             @Override
             public Void call() {
-                initiatePicker(activity);
+                if (limit == null)
+                    initiatePicker(activity);
+                else
+                    initiatePickerWithLimit(activity);
                 return null;
             }
         });
@@ -727,28 +746,31 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
             resultCollector.notifyProblem(E_PICKER_CANCELLED_KEY, E_PICKER_CANCELLED_MSG);
         } else if (resultCode == Activity.RESULT_OK) {
             if (multiple) {
-                ClipData clipData = data.getClipData();
+                if (limit != null) {
+                    ArrayList<Image> images = data.getParcelableArrayListExtra(Constants.INTENT_EXTRA_IMAGES);
+                    ArrayList<Uri> srcList = new ArrayList<Uri>();
+                    for (Image img : images) {
+                        srcList.add(Uri.fromFile(new File(img.path)));
+                    }
+                    handleInputUriList(activity, srcList);
+                } else {
+                    ClipData clipData = data.getClipData();
 
-                try {
-                    // only one image selected
-                    if (clipData == null) {
-                        resultCollector.setWaitCount(1);
-                        getAsyncSelection(activity, data.getData(), false);
-                    } else {
-                        if (cropping) {
+                    try {
+                        // only one image selected
+                        if (clipData == null) {
+                            resultCollector.setWaitCount(1);
+                            getAsyncSelection(activity, data.getData(), false);
+                        } else {
                             ArrayList<Uri> inputList = new ArrayList<Uri>();
                             for (int i = 0; i < clipData.getItemCount(); i++) {
                                 inputList.add(clipData.getItemAt(i).getUri());
                             }
-                            startCropping(activity, inputList);
-                        } else {
-                            for (int i = 0; i < clipData.getItemCount(); i++) {
-                                getAsyncSelection(activity, clipData.getItemAt(i).getUri(), false);
-                            }
+                            handleInputUriList(activity, inputList);
                         }
+                    } catch (Exception ex) {
+                        resultCollector.notifyProblem(E_NO_IMAGE_DATA_FOUND, ex.getMessage());
                     }
-                } catch (Exception ex) {
-                    resultCollector.notifyProblem(E_NO_IMAGE_DATA_FOUND, ex.getMessage());
                 }
 
             } else {
@@ -758,17 +780,24 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
                     resultCollector.notifyProblem(E_NO_IMAGE_DATA_FOUND, "Cannot resolve image url");
                     return;
                 }
+                ArrayList<Uri> uriList = new ArrayList<Uri>();
+                uriList.add(uri);
+                handleInputUriList(activity, uriList);
+            }
+        }
+    }
 
-                if (cropping) {
-                    startCropping(activity, uri);
-                } else {
-                    try {
-                        getAsyncSelection(activity, uri, false);
-                    } catch (Exception ex) {
-                        resultCollector.notifyProblem(E_NO_IMAGE_DATA_FOUND, ex.getMessage());
-                    }
+    private void handleInputUriList(Activity activity, ArrayList<Uri> inputList) {
+        try {
+            if (cropping) {
+                startCropping(activity, inputList);
+            } else {
+                for (Uri uri : inputList) {
+                    getAsyncSelection(activity, uri, false);
                 }
             }
+        } catch (Exception ex) {
+            resultCollector.notifyProblem(E_NO_IMAGE_DATA_FOUND, ex.getMessage());
         }
     }
 
