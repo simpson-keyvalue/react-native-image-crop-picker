@@ -1,4 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="com.reactnative.ivpusic.imagepicker">
 
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
@@ -8,9 +9,11 @@
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"
+            tools:replace="android:authorities"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
+                tools:replace="android:resource"
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/provider_paths" />
         </provider>
@@ -18,12 +21,6 @@
         <activity
             android:name="com.yalantis.ucrop.UCropActivity"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
-
-        <activity android:name="com.darsh.multipleimageselect.activities.AlbumSelectActivity">
-            <intent-filter>
-                <category android:name="ANDROID.INTENT.CATEGORY.DEFAULT"/>
-            </intent-filter>
-        </activity>
     </application>
 
 </manifest>

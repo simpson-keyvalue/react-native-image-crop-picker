@@ -35,9 +35,7 @@ import com.facebook.react.modules.core.PermissionListener;
 import com.yalantis.ucrop.UCrop;
 import com.yalantis.ucrop.UCropActivity;
 
-import com.darsh.multipleimageselect.activities.AlbumSelectActivity;
-import com.darsh.multipleimageselect.helpers.Constants;
-import com.darsh.multipleimageselect.models.Image;
+import com.opensooq.supernova.gligar.GligarPicker;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -387,13 +385,7 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
     }
 
     private void initiatePickerWithLimit(final Activity activity) {
-        try {
-            Intent intent = new Intent(activity, AlbumSelectActivity.class);
-            intent.putExtra(Constants.INTENT_EXTRA_LIMIT, limit);
-            activity.startActivityForResult(intent, IMAGE_PICKER_REQUEST);
-        } catch (Exception e) {
-            resultCollector.notifyProblem(E_FAILED_TO_SHOW_PICKER, e);
-        }
+        new GligarPicker().requestCode(IMAGE_PICKER_REQUEST).limit(limit).withActivity(activity).show();
     }
 
     @ReactMethod
@@ -747,10 +739,10 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
         } else if (resultCode == Activity.RESULT_OK) {
             if (multiple) {
                 if (limit != null) {
-                    ArrayList<Image> images = data.getParcelableArrayListExtra(Constants.INTENT_EXTRA_IMAGES);
+                    String pathsList[]= data.getExtras().getStringArray(GligarPicker.IMAGES_RESULT);
                     ArrayList<Uri> srcList = new ArrayList<Uri>();
-                    for (Image img : images) {
-                        srcList.add(Uri.fromFile(new File(img.path)));
+                    for (String s : pathsList) {
+                        srcList.add(Uri.fromFile(new File(s)));
                     }
                     handleInputUriList(activity, srcList);
                 } else {
