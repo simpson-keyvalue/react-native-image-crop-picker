@@ -143,7 +143,7 @@ class PickerModule extends ReactContextBaseJavaModule implements ActivityEventLi
         enableRotationGesture = options.hasKey("enableRotationGesture") && options.getBoolean("enableRotationGesture");
         disableCropperColorSetters = options.hasKey("disableCropperColorSetters") && options.getBoolean("disableCropperColorSetters");
         useFrontCamera = options.hasKey("useFrontCamera") && options.getBoolean("useFrontCamera");
-        limit = options.hasKey("limit") ? options.getInt("limit") : null;
+        limit = options.hasKey("maxFiles") ? options.getInt("maxFiles") : null;
         this.options = options;
     }
 

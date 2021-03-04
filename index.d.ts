@@ -67,8 +67,7 @@ declare module "react-native-image-crop-picker" {
         /**
          * Max number of files to select when using `multiple` option.
          *
-         * @platform iOS only
-         * @default 5
+         * @default iOS = 5, android=1 (single select)
          */
         maxFiles?: number;
 
